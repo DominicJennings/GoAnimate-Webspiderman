@@ -14,7 +14,7 @@ async function listAssets(data, makeZip) {
 			xmlString = `${header}<ugc more="0">${chars
 				.map(
 					(v) =>
-						`<char id="${v.id}" name="Untitled" cc_theme_id="${v.theme}" thumbnail_url="char_default.png" copyable="Y"><tags/></char>`
+						`<char id="${v.id}" name="Untitled" cc_theme_id="${v.theme}" thumbnail_url="http://localhost/char_thumbs/${v.id}.png" copyable="Y"><tags/></char>`
 				)
 				.join("")}</ugc>`;
 			break;
@@ -26,32 +26,22 @@ async function listAssets(data, makeZip) {
 				.join("")}</ugc>`;
 			break;
 		}
-		case "bgmusic": {
-			var files = asset.list(data.movieId, "bgmusic");
-			xmlString = `${header}<ugc more="0">${files
-				.map(
-					(v) =>
-						`<sound subtype="bgmusic" id="${v.id}" name="${v.name}" enable="Y" duration="${v.duration}" downloadtype="progressive" enc_asset_id="${v.id}" signature="${v.signature}"/>`
-				)
-				.join("")}</ugc>`;
-			break;
-		}
-		case "soundeffect": {
-			var files = asset.list(data.movieId, "soundeffect");
-			xmlString = `${header}<ugc more="0">${files
-				.map(
-					(v) =>
-						`<sound subtype="soundeffect" id="${v.id}" name="${v.name}" enable="Y" duration="${v.duration}" downloadtype="progressive" enc_asset_id="${v.id}" signature="${v.signature}"/>`
-				)
-				.join("")}</ugc>`;
-			break;
-		}
-		case "voiceover": {
+		case "sound": {
 			var files = asset.list(data.movieId, "voiceover");
 			xmlString = `${header}<ugc more="0">${files
 				.map(
 					(v) =>
-						`<sound subtype="voiceover" id="${v.id}" name="${v.name}" enable="Y" duration="${v.duration}" downloadtype="progressive" enc_asset_id="${v.id}" signature="${v.signature}"/>`
+						`<sound subtype="${v.subtype}" id="${v.id}" name="${v.name}" enable="Y" duration="${v.duration}" downloadtype="progressive"/>`
+				)
+				.join("")}</ugc>`;
+			break;
+		}	
+		case "movie": {
+			var files = asset.list(data.movieId, "starter");
+			xmlString = `${header}<ugc more="0">${files
+				.map(
+					(v) =>
+						`<movie id="${v.id}" enc_asset_id="${v.id}" path="/_SAVED/${v.id}" numScene="1" title="${v.name}" thumbnail_url="/movie_thumbs/${v.id}.png"><tags></tags></movie>`
 				)
 				.join("")}</ugc>`;
 			break;
@@ -62,7 +52,7 @@ async function listAssets(data, makeZip) {
 			xmlString = `${header}<ugc more="0">${files
 				.map(
 					(v) =>
-						`<prop subtype="0" id="${v.id}" name="${v.name}" enable="Y" holdable="0" headable="0" placeable="1" facing="left" width="0" height="0" duration="0" enc_asset_id="${v.id}"/>`
+						`<prop subtype="0" id="${v.id}" name="${v.name}" enable="Y" holdable="0" headable="0" placeable="1" facing="left" width="0" height="0" duration="0"/>`
 				)
 				.join("")}</ugc>`;
 			break;
@@ -81,18 +71,12 @@ async function listAssets(data, makeZip) {
 					fUtil.addToZip(zip, `${file.mode}/${file.id}`, buffer);
 					break;
 				}
-				case "sound":
-				case "soundeffect": {
+				case "movie": {
 					const buffer = asset.load(data.movieId, file.id);
 					fUtil.addToZip(zip, `${file.mode}/${file.id}`, buffer);
 					break;
 				}
-				case "bgmusic": {
-					const buffer = asset.load(data.movieId, file.id);
-					fUtil.addToZip(zip, `${file.mode}/${file.id}`, buffer);
-					break;
-				}
-				case "voiceover": {
+				case "sound": {
 					const buffer = asset.load(data.movieId, file.id);
 					fUtil.addToZip(zip, `${file.mode}/${file.id}`, buffer);
 					break;
@@ -114,7 +98,7 @@ async function listAssets(data, makeZip) {
 /**
  * @param {http.IncomingMessage} req
  * @param {http.ServerResponse} res
- * @param {string} url
+ * @param {import("url").UrlWithParsedQuery} url
  * @returns {boolean}
  */
 module.exports = function (req, res, url) {
@@ -135,14 +119,15 @@ module.exports = function (req, res, url) {
 			if (q.movieId && q.type) {
 				listAssets(q, makeZip).then((buff) => {
 					const type = makeZip ? "application/zip" : "text/xml";
-					res.setHeader("Content-Type", type), res.end(buff);
+					res.setHeader("Content-Type", type);
+					res.end(buff);
 				});
 				return true;
-			}
+			} else return;
 		}
 		case "POST": {
 			loadPost(req, res)
-				.then((data) => listAssets(data, makeZip))
+				.then(([data]) => listAssets(data, makeZip))
 				.then((buff) => {
 					const type = makeZip ? "application/zip" : "text/xml";
 					res.setHeader("Content-Type", type);
